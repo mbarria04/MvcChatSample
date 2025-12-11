@@ -1,0 +1,49 @@
+
+<div id="assistant-chat" class="chat">
+    <div class="chat-header">
+        <span>Asistente</span>
+        <button id="chat-toggle" class="chat-toggle" aria-label="Minimizar">–</button>
+    </div>
+    
+    <div id="chat-log" class="chat-log"></div>
+    <div class="chat-input">
+        <input id="chat-text" type="text" placeholder="Escribe tu pregunta..." />
+        <button id="chat-send">Enviar</button>
+    </div>
+</div>
+
+<link rel="stylesheet" href="~/client-widget/chat-widget.css" />
+<script src="~/client-widget/chat-widget.js"></script>
+
+<script>
+    async function sendMessage(text) {
+      const log = document.getElementById('chat-log');
+      const add = (cls, msg) => {
+        const div = document.createElement('div');
+        div.className = 'msg ' + cls;
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble';
+        bubble.textContent = msg;
+        div.appendChild(bubble);
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+      };
+
+      add('user', text);
+      try {
+        const resp = await fetch('/assistant/chat', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text })
+        });
+        const data = await resp.json();
+        if (!resp.ok) { add('assistant', data?.error ?? 'Error'); return; }
+        add('assistant', data.reply);
+      } catch(e) { add('assistant', 'Error de red: ' + e); }
+    }
+
+    (function init(){
+      const btn = document.getElementById('chat-send');
+      const input = document.getElementById('chat-text');
+      btn.addEventListener('click', () => { if (input.value.trim()) { sendMessage(input.value.trim()); input.value=''; } });
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && input.value.trim()) { sendMessage(input.value.trim()); input.value=''; } });
+    })();
+</script>

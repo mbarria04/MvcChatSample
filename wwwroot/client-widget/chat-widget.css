@@ -1,0 +1,210 @@
+﻿
+/* Reset mínimo */
+* {
+    box-sizing: border-box;
+}
+
+:root {
+    --chat-bg: #ffffff;
+    --chat-fg: #1a1a1a;
+    --chat-primary: #0d6efd; /* Azul Bootstrap-like */
+    --chat-muted: #6c757d;
+    --bubble-user: #e9f5ff;
+    --bubble-assistant: #f8f9fa;
+    --border: #e5e7eb;
+    --shadow: 0 8px 24px rgba(0,0,0,.15);
+}
+
+#assistant-chat.chat {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 360px;
+    max-width: calc(100vw - 40px);
+    background: var(--chat-bg);
+    color: var(--chat-fg);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 9999;
+    overflow: hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+}
+
+.chat-header {
+    background: var(--chat-primary);
+    color: #fff;
+    font-weight: 600;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+    .chat-header::after {
+        content: "∙∙∙";
+        letter-spacing: 4px;
+        opacity: .8;
+        font-weight: 300;
+    }
+/* Botón del header */
+.chat-toggle {
+    background: transparent;
+    color: #fff;
+    border: none;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+/* Estado minimizado */
+#assistant-chat.chat-minimized {
+    height: 48px !important;
+    transition: height .25s ease;
+}
+
+    /* Ocultar contenido cuando está minimizado */
+    #assistant-chat.chat-minimized .chat-log,
+    #assistant-chat.chat-minimized .chat-input {
+        display: none;
+    }
+
+/* Historial */
+.chat-log {
+    padding: 12px;
+    max-height: 380px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
+
+/* Mensajes */
+.msg {
+    margin-bottom: 12px;
+    display: flex;
+}
+
+    .msg .bubble {
+        padding: 10px 12px;
+        border-radius: 10px;
+        line-height: 1.4;
+        box-shadow: 0 1px 0 rgba(0,0,0,.04);
+        max-width: 85%;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    .msg.user {
+        justify-content: flex-end;
+    }
+
+        .msg.user .bubble {
+            background: var(--bubble-user);
+            border: 1px solid #dbeafe;
+        }
+
+    .msg.assistant .bubble {
+        background: var(--bubble-assistant);
+        border: 1px solid var(--border);
+    }
+
+/* Tipando */
+.typing {
+    display: inline-block;
+    width: 18px;
+    height: 10px;
+    background: linear-gradient(90deg, #d1d5db 25%, #9ca3af 50%, #d1d5db 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+    border-radius: 6px;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Form */
+.chat-input {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid var(--border);
+}
+
+    .chat-input input {
+        flex: 1;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        outline: none;
+    }
+
+        .chat-input input:focus {
+            border-color: var(--chat-primary);
+            box-shadow: 0 0 0 3px rgba(13, 110, 253, .15);
+        }
+
+    .chat-input button {
+        background: var(--chat-primary);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: filter .2s ease;
+        min-width: 88px;
+    }
+
+        .chat-input button[disabled] {
+            filter: grayscale(0.4) brightness(0.9);
+            cursor: not-allowed;
+        }
+
+        .chat-input button:hover {
+            filter: brightness(1.07);
+        }
+
+/* Accesibilidad */
+.visually-hidden {
+    position: absolute !important;
+    height: 1px;
+    width: 1px;
+    overflow: hidden;
+    clip: rect(1px, 1px, 1px, 1px);
+    white-space: nowrap;
+    border: 0;
+    padding: 0;
+    margin: -1px;
+}
+
+/* Markdown mínimo en burbuja assistant */
+.msg.assistant .bubble h1,
+.msg.assistant .bubble h2,
+.msg.assistant .bubble h3 {
+    margin: 6px 0;
+    font-weight: 700;
+}
+
+.msg.assistant .bubble ul {
+    margin: 6px 0 6px 20px;
+}
+
+.msg.assistant .bubble li {
+    margin: 4px 0;
+}
+
+.msg.assistant .bubble code {
+    background: #f1f5f9;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
