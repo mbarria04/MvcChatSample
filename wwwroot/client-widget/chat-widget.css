@@ -136,7 +136,8 @@
     display: flex;
     gap: 8px;
     padding: 12px;
-    border-top: 1px solid var(--border);
+     border-top: none; 
+   /* border-top: 1px solid var(--border);*/
 }
 
     .chat-input input {
@@ -207,4 +208,14 @@
     padding: 2px 4px;
     border-radius: 4px;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.bubble {
+    /* Esto evita que el navegador junte las palabras y respeta los saltos de línea */
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    /* Estética opcional */
+    padding: 10px;
+    border-radius: 8px;
+    line-height: 1.5;
 }

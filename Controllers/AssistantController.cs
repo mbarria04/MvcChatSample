@@ -1,6 +1,9 @@
 
+using MvcChatSample.Services;
 using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace MvcChatSample.Controllers
 {
@@ -8,29 +11,35 @@ namespace MvcChatSample.Controllers
     {
         private readonly IHttpClientFactory _factory;
         private readonly ILogger<AssistantController> _logger;
-        public AssistantController(IHttpClientFactory factory, ILogger<AssistantController> logger)
-        { _factory = factory; _logger = logger; }
+        private readonly RagService _rag;
+        public AssistantController(IHttpClientFactory factory, ILogger<AssistantController> logger, RagService rag)
+        { 
+            _factory = factory;
+            _logger = logger;
+            _rag = rag; 
+        }
 
         public record ChatMessageRequest(string Message);
         public record ChatReplyResponse(string reply, string? context);
         public record IngestRequest(string Title, string Content);
 
-        [HttpPost]
-        [Route("assistant/chat")]
-        public async Task<IActionResult> Chat([FromBody] ChatMessageRequest req)
+
+
+        [HttpPost("chat/stream")]
+        public async Task ChatStream([FromBody] ChatMessageRequest req, CancellationToken ct)
         {
-            if (string.IsNullOrWhiteSpace(req?.Message)) return BadRequest(new { error = "Mensaje vacío" });
-            var client = _factory.CreateClient("AssistantApi");
-            var resp = await client.PostAsJsonAsync("/api/assistant/chat", req);
-            if (!resp.IsSuccessStatusCode)
+            Response.ContentType = "text/event-stream";
+            // ... otros headers ...
+
+            await foreach (var token in _rag.AskWithOllamaAsync_Stream(req.Message, 2, ct))
             {
-                var body = await resp.Content.ReadAsStringAsync();
-                _logger.LogWarning("Assistant API error {Status}: {Body}", resp.StatusCode, body);
-                return StatusCode((int)resp.StatusCode, new { error = "Falló la consulta al asistente" });
+                // ESCRIBE EL TOKEN DIRECTO
+                // No agregues espacios extras aquí, Ollama ya los trae en el token
+                await Response.WriteAsync($"data: {token}\n\n", ct);
+                await Response.Body.FlushAsync(ct);
             }
-            var data = await resp.Content.ReadFromJsonAsync<ChatReplyResponse>();
-            return Ok(data);
         }
+
 
 
         [HttpPost]
@@ -42,5 +51,8 @@ namespace MvcChatSample.Controllers
             var resp = await client.PostAsJsonAsync("/api/assistant/ingest", req);
             return StatusCode((int)resp.StatusCode, await resp.Content.ReadAsStringAsync());
         }
+
+
+
     }
 }

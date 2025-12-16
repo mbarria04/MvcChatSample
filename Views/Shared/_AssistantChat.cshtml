@@ -1,106 +1,131 @@
+ï»¿
 <div id="assistant-chat" class="chat">
-@*     <div class="chat-header">
-        <span>Asistente</span>
-        <button id="chat-toggle" class="chat-toggle" aria-label="Minimizar">–</button>
-    </div> *@
-
+   
     <div id="chat-log" class="chat-log"></div>
+
     <div class="chat-input">
-        <input id="chat-text" type="text" placeholder="Escribe tu pregunta..." />
+        <input id="chat-text" type="text" placeholder="Escribe tu pregunta..." autocomplete="off" />
         <button id="chat-send">Enviar</button>
     </div>
 </div>
 
 <link rel="stylesheet" href="~/client-widget/chat-widget.css" />
-<script src="~/client-widget/chat-widget.js"></script>
 
 <script>
     (function () {
-      const API1_BASE = 'https://localhost:5001'; // <-- AJUSTA según tu Swagger/host real
-      const chatEl = document.getElementById('assistant-chat');
-      const logEl = document.getElementById('chat-log');
-      const inputEl = document.getElementById('chat-text');
-      const sendBtn = document.getElementById('chat-send');
-      const toggleBtn = document.getElementById('chat-toggle');
 
-      const add = (cls, msg) => {
-        const row = document.createElement('div');
-        row.className = 'msg ' + cls;
+        const CHAT_ENDPOINT = '/chat/stream';
 
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble';
-        bubble.textContent = msg;
+        const chatEl    = document.getElementById('assistant-chat');
+        const logEl     = document.getElementById('chat-log');
+        const inputEl   = document.getElementById('chat-text');
+        const sendBtn   = document.getElementById('chat-send');
+        const toggleBtn = document.getElementById('chat-toggle');
 
-        row.appendChild(bubble);
-        logEl.appendChild(row);
-        logEl.scrollTop = logEl.scrollHeight;
-      };
+        function addMessage(type, text = '') {
+            const row = document.createElement('div');
+            row.className = 'msg ' + type;
 
-      const setBusy = (busy) => {
-        sendBtn.disabled = busy;
-        inputEl.disabled = busy;
-        sendBtn.textContent = busy ? 'Enviando…' : 'Enviar';
-      };
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.textContent = text;
 
-      async function sendMessage(text) {
-        add('user', text);
-        setBusy(true);
+            row.appendChild(bubble);
+            logEl.appendChild(row);
+            logEl.scrollTop = logEl.scrollHeight;
 
-        try {
-          const resp = await fetch(`${API1_BASE}/api/assistant/chat`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: text })
-          });
-
-          const contentType = resp.headers.get('content-type') || '';
-
-          // Si la respuesta no es JSON, lee texto (HTML/ vacío) y muestra error amable
-          if (!contentType.includes('application/json')) {
-            const raw = await resp.text();
-            console.error('Respuesta no JSON: status=', resp.status, 'body=', raw);
-            add('assistant', `Error HTTP ${resp.status}. Respuesta no JSON.`);
-            return;
-          }
-
-          const data = await resp.json();
-
-          if (!resp.ok) {
-            add('assistant', data?.error ?? `Error HTTP ${resp.status}`);
-            return;
-          }
-
-          // Tu backend devuelve { reply, context }
-          add('assistant', data?.reply ?? '(Respuesta vacía)');
-        } catch (e) {
-          console.error('Error de red:', e);
-          add('assistant', 'Error de red: ' + (e?.message ?? e));
-        } finally {
-          setBusy(false);
+            return bubble; // ðŸ‘ˆ clave para streaming
         }
-      }
 
-      // Envío por botón y Enter
-      const handleSend = () => {
-        const txt = (inputEl.value || '').trim();
-        if (!txt) return;
-        inputEl.value = '';
-        sendMessage(txt);
-      };
+        function setBusy(busy) {
+            sendBtn.disabled = busy;
+            inputEl.disabled = busy;
+            sendBtn.textContent = busy ? 'Enviandoâ€¦' : 'Enviar';
+        }
 
-      sendBtn.addEventListener('click', handleSend);
-      inputEl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handleSend();
-      });
+        async function sendMessage(text) {
+            addMessage('user', text);
+            setBusy(true);
 
-      // Minimizar/expandir
-      toggleBtn.addEventListener('click', () => {
-        const minimized = chatEl.classList.toggle('minimized');
-        toggleBtn.textContent = minimized ? '+' : '–';
-        toggleBtn.setAttribute('aria-label', minimized ? 'Expandir' : 'Minimizar');
-      });
+            const assistantBubble = addMessage('assistant', '');
+
+            try {
+                const resp = await fetch(CHAT_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+
+                if (!resp.ok || !resp.body) {
+                    assistantBubble.textContent = `âŒ Error HTTP ${resp.status}`;
+                    return;
+                }
+
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+
+                let buffer = '';
+
+                   while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const events = buffer.split('\n\n');
+        buffer = events.pop();
+
+        for (const evt of events) {
+            if (!evt.startsWith('data:')) continue;
+
+            // CAMBIO CLAVE: Quitamos "data: " (6 caracteres)
+            // Â¡SIN USAR .trim()! para no pegar las palabras.
+            const data = evt.substring(6);
+
+            if (data.includes('[DONE]')) {
+                setBusy(false);
+                return;
+            }
+
+            // Agregamos el fragmento tal cual viene
+            assistantBubble.textContent += data;
+
+            // Auto-scroll
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+    }
+            }
+            catch (err) {
+                assistantBubble.textContent =
+                    err.name === 'AbortError'
+                        ? 'â³ El asistente tardÃ³ demasiado.'
+                        : 'âŒ Error de red.';
+            }
+            finally {
+                setBusy(false);
+            }
+        }
+
+        function handleSend() {
+            const text = inputEl.value.trim();
+            if (!text) return;
+            inputEl.value = '';
+            sendMessage(text);
+        }
+
+        sendBtn.addEventListener('click', handleSend);
+        inputEl.addEventListener('keydown', e => {
+            if (e.key === 'Enter') handleSend();
+        });
+
+        toggleBtn.addEventListener('click', () => {
+            const minimized = chatEl.classList.toggle('minimized');
+            toggleBtn.textContent = minimized ? '+' : 'â€“';
+            toggleBtn.setAttribute(
+                'aria-label',
+                minimized ? 'Expandir' : 'Minimizar'
+            );
+        });
+
     })();
-
-
 </script>
-
