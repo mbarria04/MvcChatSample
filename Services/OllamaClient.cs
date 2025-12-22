@@ -21,7 +21,7 @@ namespace MvcChatSample.Services
         {
             var payload = new
             {
-                model = "phi3:mini",
+                model = "llama3.2:1b",
                 stream = true,
                 options = new
                 {
@@ -34,24 +34,20 @@ namespace MvcChatSample.Services
                 prompt = $"Contexto: {context}\n\nPregunta: {question}"
             };
 
-            // 1. Serializamos manualmente para tener control total
-var jsonPayload = JsonSerializer.Serialize(payload);
-var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+            // Serializamos manualmente para tener control total
+            var jsonPayload = JsonSerializer.Serialize(payload);
+            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-// 2. Creamos la petición
-using var req = new HttpRequestMessage(HttpMethod.Post, "api/generate")
-{
-    Content = content
-};
+            //petición
+            using var req = new HttpRequestMessage(HttpMethod.Post, "api/generate")
+            {
+                Content = content
+            };
 
-// 3. ¡ESTO ES LO MÁS IMPORTANTE! 
-// Debes usar HttpCompletionOption.ResponseHeadersRead
-// Si no, .NET espera a que Ollama termine TODA la respuesta para dártela.
-using var resp = await _http.SendAsync(
-    req, 
-    HttpCompletionOption.ResponseHeadersRead, // <--- CLAVE PARA EL STREAMING
-    ct
-);
+
+            using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+
+
             resp.EnsureSuccessStatusCode();
 
             using var stream = await resp.Content.ReadAsStreamAsync(ct);
@@ -77,3 +73,5 @@ using var resp = await _http.SendAsync(
 
     }
 }
+
+
